@@ -1,0 +1,72 @@
+{
+  "data": {
+    "about": "",
+    "anonymous": false,
+    "avatar_id": "2",
+    "badges": [
+      {
+        "name": "Facebook",
+        "status": false,
+        "type": "facebook"
+      },
+      {
+        "name": "G+",
+        "status": false,
+        "type": "gplus"
+      },
+      {
+        "name": "Apple",
+        "status": false,
+        "type": "apple"
+      },
+      {
+        "name": "Phone number",
+        "status": true,
+        "type": "phone"
+      },
+      {
+        "name": "Email",
+        "status": true,
+        "type": "email"
+      }
+    ],
+    "created_at": "2015-06-05T01:41:03+07:00",
+    "dealer": {
+      "car": {
+        "metadata": {
+          "status": "inactive"
+        }
+      }
+    },
+    "first_name": "hendi",
+    "has_phone": true,
+    "id": "33399121",
+    "images": [],
+    "is_banned": false,
+    "is_business": false,
+    "is_phone_visible": true,
+    "lang": "en",
+    "last_name": "hendi",
+    "legal_name": "Hendi Hardianto",
+    "locations": [
+      {
+        "city_id": "",
+        "district_id": "",
+        "lat": 0,
+        "lon": 0,
+        "region_id": "",
+        "subregion_id": ""
+      }
+    ],
+    "name": "hendi",
+    "name_provided": true,
+    "phone": "+6281289955562",
+    "showroom_address": {
+      "operatingdetails": []
+    },
+    "verification_status": "verified"
+  },
+  "metadata": {
+    "update": null
+  }
+}
