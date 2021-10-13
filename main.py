@@ -4,6 +4,7 @@ import logging, time
 import sys, pickle, threading
 
 logging.basicConfig(format='[%(asctime)s] %(levelname)-8s: %(message)s',datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO, handlers=[logging.FileHandler('./log.log'), logging.StreamHandler(sys.stdout)])
+#logging.basicConfig(format='[%(asctime)s] %(levelname)-8s: %(message)s',datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO, handlers=[logging.FileHandler('./log.log')])
 
 head = {'User-Agent':"Mozilla/5.0 (X11; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0","Connection":"keep-alive"}
 prc_jumlah_parameters = 25
@@ -47,8 +48,7 @@ class Main:
 			bear = 'Bearer '+loginUS.json()['token']
 			headPW = {'User-Agent':"Mozilla/5.0 (X11; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0", 'Authorization':bear}
 			loginPW = self.requests.post('https://www.olx.co.id/api/auth/authenticate/login', headers=headPW, json={"grantType":"password","password":PW,"email":US,"language":"id","metadata":{"deviceInfo":""}})
-			
-			reqME = self.requests.get('http://www.olx.co.id/api/users/me', headers=self.head)
+			reqME = self.requests.get('https://www.olx.co.id/api/users/me', headers=self.head)
 
 			if 'error' in reqME.json():
 				logging.exception(reqME.content)
@@ -63,7 +63,7 @@ class Main:
 	def search_location(self):
 		lokasi = input('Daerah : ')
 		try:
-			urlLoc = f'http://www.olx.co.id/api/locations/autocomplete?input={lokasi}&limit=5'
+			urlLoc = f'https://www.olx.co.id/api/locations/autocomplete?input={lokasi}&limit=5'
 			reqLoc = self.requests.get(urlLoc, headers=head)
 			if len(reqLoc.json()['data']['suggestions']) > 0:
 				for num, i in enumerate(reqLoc.json()['data']['suggestions']):
@@ -92,7 +92,7 @@ class Main:
 		for o in range(0,end_page):
 			try:
 				time.sleep(0.3)
-				urlProduk = f'http://www.olx.co.id/api/relevance/v2/search?facet_limit=200&location={self.idDaerah}&location_facet_limit=30&platform=web-desktop&query={q}&spellcheck=true&page={o}'
+				urlProduk = f'https://www.olx.co.id/api/relevance/v2/search?facet_limit=200&location={self.idDaerah}&location_facet_limit=30&platform=web-desktop&query={q}&spellcheck=true&page={o}'
 				reqProduk = self.requests.get(urlProduk, headers=head)
 				for i in reqProduk.json()['data']:
 					num += 1
@@ -120,7 +120,7 @@ class Main:
 
 	def get_user_detail(self, idUser):
 		try:
-			req_cekUser = self.requests.get(f'http://www.olx.co.id/api/users/{idUser}', headers=self.head)
+			req_cekUser = self.requests.get(f'https://www.olx.co.id/api/users/{idUser}', headers=self.head)
 			req_cekUser = req_cekUser.json()['data']
 			return [req_cekUser['phone'], req_cekUser['name']]
 		except:
@@ -196,7 +196,7 @@ class Main:
 				harga = i['price']['value']['raw']
 
 
-			urlBarang = f"http://www.olx.co.id/item/{title_to_url(i['title'])}iid-{i['id']}"
+			urlBarang = f"https://www.olx.co.id/item/{title_to_url(i['title'])}iid-{i['id']}"
 			try:
 				tmp_data_filter = [i['id'], i['title'], i['created_at'], i['description'],  harga, lokasi_barang[0],lokasi_barang[1],lokasi_barang[2], user_detail[0], user_detail[1], urlBarang]
 				for pr in parameters:
