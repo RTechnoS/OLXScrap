@@ -1,7 +1,18 @@
 import requests
-import json, re
+import re
 import logging, time
-import sys, pickle, threading
+import sys, pickle
+from pandas import DataFrame
+
+
+
+print("""
+ =============== RTechS ==============
+ =      Rusman Tobyakta Siregar      =
+ =        IG: @rusman_toby           =
+ =       rusmants.public@pm.me       =
+ =====================================
+""")
 
 logging.basicConfig(format='[%(asctime)s] %(levelname)-8s: %(message)s',datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO, handlers=[logging.FileHandler('./log.log'), logging.StreamHandler(sys.stdout)])
 #logging.basicConfig(format='[%(asctime)s] %(levelname)-8s: %(message)s',datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO, handlers=[logging.FileHandler('./log.log')])
@@ -9,6 +20,9 @@ logging.basicConfig(format='[%(asctime)s] %(levelname)-8s: %(message)s',datefmt=
 head = {'User-Agent':"Mozilla/5.0 (X11; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0","Connection":"keep-alive"}
 prc_jumlah_parameters = 25
 
+
+t_awal = None
+t_akhir = None
 
 def title_to_url(title):
 	i = re.sub(r"\[(.*?)\]", "olx",title.lower()).split()
@@ -28,7 +42,8 @@ class Main:
 		self.requests = requests.Session()
 		self.head = {'User-Agent':"Mozilla/5.0 (X11; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0"}
 		self.table_title = ['Id', 'Judul', 'Waktu', 'Deskripsi', 'Harga', 'Provinsi', 'Kota/Kab', 'Lokasi', 'Handphone', 'Penjual', 'Url']
-
+		self.cache_info_seller = {}
+		self.webpage_load = 2
 
 	def save_to_pickle(self, lok, data):
 		try:
@@ -38,6 +53,15 @@ class Main:
 			return True
 		except:
 			return False
+
+	def save_to_csv(self, lok):
+		try:
+			df = DataFrame(self.data_filter, columns=self.table_title)
+			df.to_csv(lok, index=False)
+			return {'status':True, 'location':lok}
+		except:
+			logging.exception('Error save to csv')
+			return {'status':False}
 
 	def login(self, US, PW):
 		PW = PW.strip('\n')
@@ -58,7 +82,6 @@ class Main:
 		except:
 			logging.exception("Error login")
 			return False
-		#print(reqME.json())
 
 	def search_location(self):
 		lokasi = input('Daerah : ')
@@ -84,45 +107,89 @@ class Main:
 		except:
 			logging.exception("Error search_location")
 
+	def max_data(self):
+		print("\nSemakin banyak maka semakin lama, jumlah disarankan dari kelipatan 20")
+		try:
+			max_data = int(input('Maximal Data : '))
+			if max_data <= 20:
+				self.webpage_load = 0
+			
+			h = max_data/20
+			if h > int(h):
+				h = int(h)+1
+
+			self.webpage_load = h
+		except:
+			self.webpage_load = 0
+
+
 	def search_query(self):
-		q = input('Search : ')
-		end_page = 25
-		jumlah_search_query = 20*end_page
+		q = input('\nKata Kunci : ')
+		self.max_data()
+
+		jumlah_search_query = 20*self.webpage_load
 		num = 0
-		for o in range(0,end_page):
+
+		for o in range(int(self.webpage_load)):
+			er = False
 			try:
 				time.sleep(0.3)
 				urlProduk = f'https://www.olx.co.id/api/relevance/v2/search?facet_limit=200&location={self.idDaerah}&location_facet_limit=30&platform=web-desktop&query={q}&spellcheck=true&page={o}'
-				reqProduk = self.requests.get(urlProduk, headers=head)
-				for i in reqProduk.json()['data']:
-					num += 1
-					self.data_raw.append(i)
-					n = num+1
-
-					prc = (n/jumlah_search_query)*100
-					print('Search ['+'#'*int(prc/2),' '*int((100-prc)/2),']'+f' {int(prc)}%','\r', end='')
-					print(' \r', end='')
-
 				
+				try:
+					reqProduk = self.requests.get(urlProduk, headers=head,timeout=3)
+					er = False
+					if len(reqProduk.json()['data']) == 0 or 'data' not in reqProduk.json():
+						er = True
+					if reqProduk.status_code != 200:
+						er = True
+				except:
+					er = True
+
+
+				if er == False :
+					for i in reqProduk.json()['data']:
+						num += 1
+						self.data_raw.append(i)
+						n = num+1
+
+						prc = (n/jumlah_search_query)*100
+						print('Search ['+'#'*int(prc/2),' '*int((100-prc)/2),']'+f' {int(prc)}%','\r', end='')
+						
+				else:
+
+					prc = 100
+					print('Search ['+'#'*int(prc/2),' '*int((100-prc)/2),']'+f' {int(prc)}%','\r', end='')
+					break
+
+					
 				if len(self.data_raw) == 0:
 					print('Tidak ditemukan')
 					break
 			except:
 				logging.exception("Error search_query")
 		self.query = q
-		#print('\n')
-		print('[SUCCES] Search Data')
 
 		if len(self.data_raw) > 0:
+			print('[SUCCES] Search Data')
 			return True
 		else:
+			print('[FAILED] Data not found')
 			return False
 
 	def get_user_detail(self, idUser):
 		try:
-			req_cekUser = self.requests.get(f'https://www.olx.co.id/api/users/{idUser}', headers=self.head)
-			req_cekUser = req_cekUser.json()['data']
-			return [req_cekUser['phone'], req_cekUser['name']]
+
+			if idUser in self.cache_info_seller:
+				detail = [self.cache_info_seller[idUser][0], self.cache_info_seller[idUser][1]]
+			else:
+				req_cekUser = self.requests.get(f'https://www.olx.co.id/api/users/{idUser}', headers=self.head)
+				req_cekUser = req_cekUser.json()['data']
+				detail = [req_cekUser['phone'], req_cekUser['name']]
+
+				self.cache_info_seller[idUser] = detail
+
+			return detail
 		except:
 			logging.exception('Error get detail penjual')
 			return [0,'']
@@ -138,15 +205,10 @@ class Main:
 
 		min_jumlah_parameters = (prc_jumlah_parameters/100)*jumlah_data_raw
 
-		print(jumlah_data_raw, ' - ' ,min_jumlah_parameters)
-
 		for pr in count_parameters_keys:
 			if count_parameters_keys[pr] >= min_jumlah_parameters:
 				self.table_title.append(pr)
 				self.parameters_keys.append(pr)
-
-		print(count_parameters_keys)
-		print(self.parameters_keys)
 
 
 	def filter_data(self):
@@ -187,8 +249,19 @@ class Main:
 				parameters.append(h)
 
 			if 'locations_resolved' in i:
+
 				try:
-					lokasi_barang = [i['locations_resolved']['ADMIN_LEVEL_1_name'], i['locations_resolved']['ADMIN_LEVEL_3_name'], i['locations_resolved']['SUBLOCALITY_LEVEL_1_name']]
+					keyy = i['locations_resolved'].keys
+					#print(keyy)
+
+					if 'ADMIN_LEVEL_1_name' in i['locations_resolved']:
+						lokasi_barang[0] = i['locations_resolved']['ADMIN_LEVEL_1_name']
+
+					if 'ADMIN_LEVEL_3_name' in i['locations_resolved']:
+						lokasi_barang[1] = i['locations_resolved']['ADMIN_LEVEL_3_name']
+
+					if 'SUBLOCALITY_LEVEL_1_name' in i['locations_resolved']:
+						lokasi_barang[2] = i['locations_resolved']['SUBLOCALITY_LEVEL_1_name']
 				except:
 					print(i['locations_resolved'])
 
@@ -213,63 +286,42 @@ class Main:
 
 		print('[SUCCES] Filter Data')
 
-		t = threading.Thread(target=self.save_to_pickle, args=(f"{self.lokasi}-{self.query}.pickle", self.data_filter))
-		t.start()
+		self.save_to_pickle(f"hasil/pickle/{self.lokasi}-{self.query}.pickle", {'title':self.table_title, 'data':self.data_filter})
 
-
-		for i in self.data_filter:
-			print(i)
-		print(len(self.data_filter))
-		print(self.table_title)
-
-
-	def print_data(self):
-		for i in self.data_raw:
-			user_detail = self.get_user_detail(i['user_id'])
-			if 'locations_resolved' in i:
-				lokasi_barang = f"{i['locations_resolved']['ADMIN_LEVEL_1_name']} - {i['locations_resolved']['ADMIN_LEVEL_3_name']} - {i['locations_resolved']['SUBLOCALITY_LEVEL_1_name']}"
-			else:
-				lokasi_barang = 'Tidak Tersedia'
-			print(f"""=========================
-{i['title']}
-Id: {i['id']}
-Deskripsi: {i['description'][:100]}....
-Waktu: {i['created_at']}
-Harga: {i['price']['value']['raw']}
-Loc: {lokasi_barang}
-Phone: {user_detail[0]}
-========================
-""")
-
-
-	def get_data(self):
-		print(self.data_raw)
-
+		lok = f"hasil/csv/{self.lokasi}-{self.query}.csv"
+		self.save_to_csv(lok)
+		print(f'[SAVED] CSV => {lok}')
+		print(f'[INFO] Total => {len(self.data_filter)}')
 
 
 if __name__ == '__main__':
 	main = Main()
-	with open('login.txt') as baca:
-		pecah = baca.read().split(':')
-		US = pecah[0]
-		PW = pecah[1]
-
+	try:
+		with open('login.txt') as baca:
+			pecah = baca.read().split(':')
+			US = pecah[0]
+			PW = pecah[1]
+	except:
+		US = input("Email: ")
+		PW = input("Password: ")
 	print('[Wait] Proses Login ..\r', end='')
 	go_login = main.login(US,PW)
 	if go_login: 
 		print('[SUCCES] Login Success !!')
 		go_search_location = main.search_location()
 		if go_search_location:
+			t_awal = time.time()
 			go_search_query = main.search_query()
 			if go_search_query:
+				
 				main.filter_data()
+				
+				t_akhir = time.time()
+				print('[FINISH] Duration: ',t_akhir-t_awal, ' Second')
+				input('')
 			else:
 				print('[FAILED] Kata kunci tidak ditemukan')
 		else:
 			print('[FAILED] Tidak ada lokasi yang cocok')
 	else:
 		print('[FAILED] Login Failed !!')
-# print(idDaerah)
-# print(len(data))
-# for i in data:
-#     print(i['id'])
